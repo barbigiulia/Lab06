@@ -6,86 +6,70 @@ class Controller:
         self._view = view
         # the model, which implements the logic of the program and holds the data
         self._model = model
-        self._retailer = None
+        self._Borough = None
 
-    @property
-    def model(self):
-        return self._model
+    def readDropDown(self):
+        boroughs=  self._model.readBoroughs()
+        res =[]
+        for b in boroughs:
+            res.append(ft.dropdown.Option(b))   # lista di opzioni
+        return res
 
-    def scegliAnno(self, e):   # sempre l'evento passato come parametro
-        anno = e.control.value
-        print("Anno selezionato:", anno)  # SALVO LA SCELTA
 
-    def scegliBrand(self, e):
-        brand = e.control.value
-        print("Brand selezionato:", brand)
 
-    def scegliRetailer(self, e):
-        self._retailer = e.control.data  # DIFFERENZA !!! TRA MVC E OOP
-        print("Retailer selezionato:", self._retailer)
+    def handleCreaGrafo(self, e):
+        borough = self._view._ddBorough.value
+        print(f"Borough selezionato: {borough}")  # debug
 
-# METODI PER I BOTTONI
-    def handle_topVendite(self,e):
-        self._view.txt_result.controls.clear()
-        # recupero l'ANNO e il BRAND
-        anno = self._view.dd_anno.value
-        if anno == "" or anno is None:
-            anno = None
-        else:
-            anno = int(anno) # meglio passare a COALESCE un intero o None
-
-        brand = self._view.dd_brand.value
-        if brand == "" or brand is None:
-            brand = None
-
-        # l'oggetto Retailer è SALVATO NEL METODO Self, scegliReatailer()
-        if self._retailer is not None:
-            retailer = self._retailer.code  # recupero il codice
-        else:
-            retailer = None
-
-        #chiamata al model
-        topVendite = self._model.getTopVendite(anno, brand, retailer)
-
-        #stampo i risultati
-        if not topVendite:
-            self._view.txt_result.controls.append(ft.Text("Nessuna vendita trovata"))
-        else:
-            for v in topVendite:
-                self._view.txt_result.controls.append(ft.Text(str(v)))
-        self._view.update_page()
-
-    def handle_analisiVendite(self,e):
-        self._view.txt_result.controls.clear()
-        # recupero l'ANNO e il BRAND
-        anno = self._view.dd_anno.value
-        if anno == "" or anno is None:
-            anno = None
-        else:
-            anno = int(anno)  # meglio passare a COALESCE un intero o None
-
-        brand = self._view.dd_brand.value
-        if brand == "" or brand is None:
-            brand = None
-
-        # l'oggetto Retailer è SALVATO NEL METODO Self, scegliReatailer()
-        if self._retailer is not None:
-            retailer = self._retailer.code  # recupero il codice
-        else:
-            retailer = None
-
-        # dizionario
-        statistiche = self._model.getAnalisiVendite(anno, brand, retailer)
-
-        if statistiche is None:
-            self._view.txt_result.controls.append(ft.Text("Nessun risultato trovato"))
+        if borough is None or borough == "":
+            self._view.txt_result.controls.clear()
+            self._view.txt_result.controls.append(ft.Text("Selezionare un Borough (b) ", color="red"))
             self._view.update_page()
             return
 
-        self._view.txt_result.controls.append(ft.Text("Statistiche vendite:"))
-        self._view.txt_result.controls.append(ft.Text(f"Giro d'affari: {statistiche['sommaRicavi']}"))
-        self._view.txt_result.controls.append(ft.Text(f"Numero vendite: {statistiche['vendite']}"))
-        self._view.txt_result.controls.append(ft.Text(f"Numero retailers coinvolti: {statistiche['numRetailers']}"))
-        self._view.txt_result.controls.append(ft.Text(f"Numero prodotti coinvolti: {statistiche['numProdotti']}"))
 
+        # COSTRUISCO IL GRAFO
+        print("Inizio buildGraph...")  # debug
+        self._model.buildGraph(borough)
+        print(f"Nodi: {self._model.getNumNodi()}, Archi: {self._model.getNumArchi()}")  # debug
+
+        self._view.txt_result.controls.clear()
+        self._view.txt_result.controls.append(ft.Text("Grafo creato correttamente", color="green"))
+        self._view.txt_result.controls.append(ft.Text(f"Il grafo ha {self._model.getNumNodi()} nodi"
+                                                      f" e {self._model.getNumArchi()} archi", color="blue"))
+
+        self._view.update_page()
+
+
+    def handleAnalisiArchi(self, e):
+        archiMaggiori = self._model.ArchiPesoMaggiore()  # SONO DELLE TUPLE !!!
+
+        for n1, n2, peso in archiMaggiori:  # non serve più (data=True)
+            # PESO è GIA' UN INTERO!!
+            self._view.txt_result.controls.append(ft.Text(f"Arco ({n1}, {n2}) - peso {peso}", color="purple"))
+
+        self._view.update_page()
+
+    def handleSimula(self, e):
+        try:
+            p = float(self._view._txtP.value)
+            d = int(self._view._txtD.value)
+        except ValueError:
+            self._view.create_alert("Inserire valori validi per p e d")
+            return
+
+        if p < 0.2 or p > 0.9:
+            self._view.create_alert("p deve essere compreso tra 0.2 e 0.9")
+            return
+        if d <= 0:
+            self._view.create_alert("d deve essere un intero positivo")
+            return
+
+        contatori = self._model.runSimulation(p, d)
+
+        self._view.txt_result.controls.clear()
+        for nta, count in contatori.items():
+            self._view.txt_result.controls.append(
+                ft.Text(f"NTA: {nta} → file condivisi: {count}", color="blue")
+            )
         self._view.update_page()

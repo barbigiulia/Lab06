@@ -2,5 +2,5 @@
 user=root
 password=giulia
 host=127.0.0.1
-database=go_sales
+database=nyc_wifi_hotspots
 raise_on_warnings=True
